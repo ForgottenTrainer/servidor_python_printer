@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory
 import os
 import sys
@@ -452,7 +452,7 @@ def get_history():
 if __name__ == '__main__':
     setup_directories()
     print("Servidor de impresión iniciado en http://0.0.0.0:5000")
-=======
+
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_from_directory
 import os
 import sys
@@ -906,5 +906,4 @@ def get_history():
 if __name__ == '__main__':
     setup_directories()
     print("Servidor de impresión iniciado en http://0.0.0.0:5000")
->>>>>>> 2765c5726195acdaaf0b86c7909d6844fc57ae3c
     app.run(host='0.0.0.0', port=5000, debug=True)

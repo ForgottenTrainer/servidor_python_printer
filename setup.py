@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import sys
 import subprocess
 import platform
@@ -36,7 +35,7 @@ def main():
     print("python app.py")
 
 if __name__ == "__main__":
-=======
+
 import sys
 import subprocess
 import platform
@@ -74,5 +73,5 @@ def main():
     print("python app.py")
 
 if __name__ == "__main__":
->>>>>>> 2765c5726195acdaaf0b86c7909d6844fc57ae3c
+
     main()
