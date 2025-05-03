@@ -11,6 +11,6 @@ Pensado principalmente para aquellas personas que tienen una impresora por cable
 * Escribe "python setup.py" para instalar las dependencias
 * Una vez instaladas las dependencias escribe en tu terminal "python app.py"
 
-<img src="https://drive.google.com/file/d/1Jlm8TT3L9P7oLhpvW4jM00eC95AInwQA/view?usp=sharing" />
+<img src="https://drive.google.com/file/d/1Jlm8TT3L9P7oLhpvW4jM00eC95AInwQA/view" />
 
 # Listo con esto ya tienes tu servidor de impresiones funcionando
