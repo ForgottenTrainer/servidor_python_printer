@@ -36,10 +36,10 @@ def main():
 
 if __name__ == "__main__":
 
-import sys
-import subprocess
-import platform
-import os
+    import sys
+    import subprocess
+    import platform
+    import os
 
 def main():
     print("==== INSTALACIÓN DE DEPENDENCIAS PARA SERVIDOR DE IMPRESIÓN ====\n")
