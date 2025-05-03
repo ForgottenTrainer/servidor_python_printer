@@ -1,4 +1,4 @@
-# Python Flash Servidor minalista para impresiones mediante interfaz web.
+# Python Flask Servidor minalista para impresiones mediante interfaz web.
 
 Pensado principalmente para aquellas personas que tienen una impresora por cable y comparten con muchas personas la impresora, con esto se busca que el imprimir sea mucho mas facil y agil y se guarde el historial de impresiones.
 
