@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Servidor de Impresión - EPSON L20</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet"/>
+  <!-- SweetAlert2 -->
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet"/>
+
+  <style>
+    body {
+      background-color: #f5f7fa;
+      padding: 30px 0;
+    }
+    .main-container {
+      max-width: 900px;
+      margin: auto;
+    }
+    .header-bar {
+      background-color: #0d6efd;
+      color: white;
+      padding: 1rem 1.5rem;
+      border-radius: 0.5rem 0.5rem 0 0;
+    }
+    .header-bar h2 {
+      font-size: 1.5rem;
+      margin: 0;
+    }
+    .table th, .table td {
+      vertical-align: middle;
+    }
+    .no-print-message {
+      text-align: center;
+      padding: 2rem;
+      color: #6c757d;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container main-container">
+    <div class="card shadow">
+      <div class="header-bar d-flex justify-content-between align-items-center">
+        <h2><i class="bi bi-printer-fill me-2"></i>Servidor de Impresión - EPSON L20</h2>
+        <span id="connection-status" class="badge bg-success">Conectado</span>
+      </div>
+
+      <div class="card-body">
+        <!-- Servidor -->
+        <div class="mb-4">
+          <label for="server-address" class="form-label">Dirección del servidor:</label>
+          <div class="input-group">
+            <input type="text" class="form-control" id="server-address" value="http://localhost:5000"/>
+            <button class="btn btn-outline-primary" id="btn-change-server"><i class="bi bi-link-45deg me-1"></i>Conectar</button>
+          </div>
+        </div>
+
+        <!-- Formulario -->
+        <div class="card border-primary mb-4">
+          <div class="card-header bg-primary text-white">
+            <i class="bi bi-upload me-1"></i> Enviar documento a imprimir
+          </div>
+          <div class="card-body">
+            <form id="print-form">
+              <div class="mb-3">
+                <label for="file-input" class="form-label">Selecciona un archivo:</label>
+                <input class="form-control" type="file" id="file-input" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png" required/>
+                <div class="form-text">
+                  Formatos permitidos: PDF, Word (DOC, DOCX), TXT, Imágenes (JPG, JPEG, PNG)
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="printer-select" class="form-label">Impresora:</label>
+                <select class="form-select" id="printer-select">
+                  <option value="">Cargando impresoras...</option>
+                </select>
+              </div>
+              <div class="d-grid">
+                <button type="submit" class="btn btn-primary">
+                  <i class="bi bi-printer me-1"></i> Imprimir
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Historial -->
+        <div class="card">
+          <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-clock-history me-2"></i>Historial de Impresiones</span>
+            <button class="btn btn-sm btn-light" id="btn-refresh">
+              <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
+            </button>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-striped table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>#</th>
+                    <th>Archivo</th>
+                    <th>Fecha y hora</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody id="print-history-body"></tbody>
+              </table>
+            </div>
+            <div id="no-prints-message" class="no-print-message">
+              <p>No hay trabajos de impresión aún.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap + SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+  <script>
+    // Dirección del servidor (cambiar según tu configuración)
+    let serverAddress = localStorage.getItem('serverAddress') || 'http://localhost:5000';
+    let connectionStatus = true;
+    
+    // Elementos del DOM
+    const serverAddressInput = document.getElementById('server-address');
+    const connectionStatusBadge = document.getElementById('connection-status');
+    const printHistoryBody = document.getElementById('print-history-body');
+    const noPrintsMessage = document.getElementById('no-prints-message');
+    const printerSelect = document.getElementById('printer-select');
+    
+    // Inicialización
+    window.addEventListener('DOMContentLoaded', () => {
+        serverAddressInput.value = serverAddress;
+        checkServerConnection();
+        loadPrintHistory();
+        loadPrinters();
+        
+        // Configurar eventos
+        document.getElementById('btn-change-server').addEventListener('click', changeServer);
+        document.getElementById('btn-refresh').addEventListener('click', loadPrintHistory);
+        document.getElementById('print-form').addEventListener('submit', handlePrintSubmit);
+    });
+    
+    // Cargar impresoras disponibles
+    async function loadPrinters() {
+        try {
+            const response = await fetch(`${serverAddress}/impresoras`);
+            if (!response.ok) throw new Error('Error al cargar impresoras');
+            
+            const printers = await response.json();
+            printerSelect.innerHTML = ''; // Limpiar opciones existentes
+            
+            if (printers.length === 0) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'No se encontraron impresoras';
+                printerSelect.appendChild(option);
+            } else {
+                printers.forEach(printer => {
+                    const option = document.createElement('option');
+                    option.value = printer.name;
+                    option.textContent = printer.name;
+                    option.selected = printer.default;
+                    printerSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error al cargar impresoras:', error);
+            printerSelect.innerHTML = '<option value="">Error al cargar impresoras</option>';
+        }
+    }
+    
+    // Cambiar servidor
+    function changeServer() {
+        const newAddress = serverAddressInput.value.trim();
+        if (newAddress !== '') {
+            serverAddress = newAddress;
+            localStorage.setItem('serverAddress', serverAddress);
+            
+            Swal.fire({
+                title: 'Cambiando servidor...',
+                text: `Conectando a ${serverAddress}`,
+                icon: 'info',
+                allowOutsideClick: false,
+                showConfirmButton: false
+            });
+            
+            checkServerConnection()
+                .then(() => {
+                    Swal.fire({
+                        title: '¡Conectado!',
+                        text: `Conexión establecida con ${serverAddress}`,
+                        icon: 'success',
+                        timer: 1500
+                    });
+                    loadPrintHistory();
+                    loadPrinters();
+                })
+                .catch(() => {
+                    Swal.fire({
+                        title: 'Error de conexión',
+                        text: 'No se pudo establecer conexión con el servidor',
+                        icon: 'error'
+                    });
+                });
+        }
+    }
+    
+    // Verificar conexión con el servidor
+    async function checkServerConnection() {
+        try {
+            const response = await fetch(`${serverAddress}/historial`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                connectionStatus = true;
+                connectionStatusBadge.textContent = 'Conectado';
+                connectionStatusBadge.className = 'badge bg-success';
+                return Promise.resolve();
+            } else {
+                throw new Error('Error en la conexión');
+            }
+        } catch (error) {
+            connectionStatus = false;
+            connectionStatusBadge.textContent = 'Desconectado';
+            connectionStatusBadge.className = 'badge bg-danger';
+            return Promise.reject(error);
+        }
+    }
+    
+    // Cargar historial de impresiones
+    async function loadPrintHistory() {
+        try {
+            const response = await fetch(`${serverAddress}/historial`);
+            if (!response.ok) throw new Error('Error al cargar historial');
+            
+            const data = await response.json();
+            updateHistoryTable(data);
+        } catch (error) {
+            console.error('Error:', error);
+            updateConnectionStatus(false);
+        }
+    }
+    
+    // Actualizar tabla de historial
+    function updateHistoryTable(history) {
+        printHistoryBody.innerHTML = '';
+        
+        if (history.length === 0) {
+            noPrintsMessage.style.display = 'block';
+            return;
+        }
+        
+        noPrintsMessage.style.display = 'none';
+        
+        // Mostrar en orden inverso (más recientes primero)
+        history.slice().reverse().forEach(item => {
+            const row = document.createElement('tr');
+            
+            // Icono según extensión
+            let fileIcon = 'bi-file-earmark';
+            const filename = item.nombre.toLowerCase();
+            if (filename.endsWith('.pdf')) {
+                fileIcon = 'bi-file-earmark-pdf';
+            } else if (filename.endsWith('.doc') || filename.endsWith('.docx')) {
+                fileIcon = 'bi-file-earmark-word';
+            } else if (filename.endsWith('.txt')) {
+                fileIcon = 'bi-file-earmark-text';
+            } else if (filename.endsWith('.jpg') || filename.endsWith('.jpeg') || filename.endsWith('.png')) {
+                fileIcon = 'bi-file-earmark-image';
+            }
+            
+            // Estado formateado
+            let statusHtml = '';
+            if (item.estado === 'Impreso') {
+                statusHtml = '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Impreso</span>';
+            } else if (item.estado === 'Pendiente') {
+                statusHtml = '<span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i> Pendiente</span>';
+            } else if (item.estado.startsWith('Error')) {
+                statusHtml = `<span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i> Error</span>`;
+            }
+            
+            row.innerHTML = `
+                <td>${item.id}</td>
+                <td><i class="bi ${fileIcon} me-1"></i> ${item.nombre}</td>
+                <td><i class="bi bi-clock me-1"></i> ${item.fecha}</td>
+                <td>${statusHtml}</td>
+            `;
+            
+            printHistoryBody.appendChild(row);
+        });
+    }
+    
+    // Actualizar estado de conexión
+    function updateConnectionStatus(connected) {
+        connectionStatus = connected;
+        if (connected) {
+            connectionStatusBadge.textContent = 'Conectado';
+            connectionStatusBadge.className = 'badge bg-success';
+        } else {
+            connectionStatusBadge.textContent = 'Desconectado';
+            connectionStatusBadge.className = 'badge bg-danger';
+        }
+    }
+    
+    // Manejar envío de formulario de impresión
+    async function handlePrintSubmit(e) {
+        e.preventDefault();
+        
+        // Verificar conexión primero
+        if (!connectionStatus) {
+            Swal.fire({
+                title: 'Sin conexión',
+                text: 'No hay conexión con el servidor de impresión',
+                icon: 'error'
+            });
+            return;
+        }
+        
+        const fileInput = document.getElementById('file-input');
+        const selectedPrinter = printerSelect.value;
+        
+        if (!fileInput.files[0]) {
+            Swal.fire({
+                title: 'Error',
+                text: 'Por favor, selecciona un archivo',
+                icon: 'error'
+            });
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        if (selectedPrinter) {
+            formData.append('printer', selectedPrinter);
+        }
+        
+        try {
+            Swal.fire({
+                title: 'Enviando...',
+                text: 'Enviando archivo al servidor de impresión',
+                allowOutsideClick: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            const response = await fetch(`${serverAddress}/imprimir`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                Swal.fire({
+                    title: '¡Éxito!',
+                    text: `El archivo ha sido enviado correctamente a la impresora`,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+                
+                // Limpiar el formulario
+                document.getElementById('print-form').reset();
+                
+                // Recargar historial después de un breve retraso
+                setTimeout(loadPrintHistory, 1000);
+            } else {
+                Swal.fire({
+                    title: 'Error',
+                    text: result.error || 'Error al enviar el archivo',
+                    icon: 'error'
+                });
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            Swal.fire({
+                title: 'Error de conexión',
+                text: 'No se pudo conectar al servidor de impresión',
+                icon: 'error'
+            });
+            updateConnectionStatus(false);
+        }
+    }
+    
+    // Actualizar el historial cada 5 segundos
+    setInterval(loadPrintHistory, 5000);
+  </script>
+</body>
+</html>
